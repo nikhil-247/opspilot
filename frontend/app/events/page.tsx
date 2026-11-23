@@ -12,18 +12,25 @@ export default function EventsPage() {
   const [service, setService] = useState("payment-service");
   const [eventType, setEventType] = useState("database_connection_error");
   const [severity, setSeverity] = useState("error");
+  const [serviceFilter, setServiceFilter] = useState("");
+  const [severityFilter, setSeverityFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [message, setMessage] = useState("Database connection pool exhausted");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
   async function load() {
-    setEvents(await apiFetch<EventRecord[]>("/api/v1/events?limit=100"));
+    const params = new URLSearchParams({ limit: "100" });
+    if (serviceFilter.trim()) params.set("service", serviceFilter.trim());
+    if (severityFilter !== "all") params.set("severity", severityFilter);
+    if (search.trim()) params.set("search", search.trim());
+    setEvents(await apiFetch<EventRecord[]>("/api/v1/events?" + params.toString()));
   }
 
   useEffect(() => {
     load().catch((err) => setError(err instanceof Error ? err.message : "Unable to load events"));
-  }, []);
+  }, [serviceFilter, severityFilter, search]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
