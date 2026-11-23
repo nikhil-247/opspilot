@@ -8,11 +8,12 @@
 
 ## Milestone 2: Live console and enterprise access
 - [x] Next.js console backed by real API endpoints
-- [x] Incident filters, details and activity timeline
-- [x] Event explorer and event submission
+- [x] Incident filters, details, activity timeline and 15-second live refresh
+- [x] Event explorer with server-side service/severity/text filters and event submission
 - [x] JWT authentication and HttpOnly frontend session cookie
 - [x] Organization memberships and role checks
 - [x] Tenant-scoped incident, event and service dependency queries
+- [x] Viewer read-only team visibility with owner/admin role management
 - [ ] PostgreSQL migration run against a live container and cross-tenant security review
 - [ ] Invite acceptance and password reset lifecycle
 
@@ -20,7 +21,8 @@
 - [x] Celery event processing task with retry policy
 - [x] Redis broker and Docker worker service
 - [x] Prometheus HTTP metrics endpoint and scrape config
-- [x] OpenTelemetry FastAPI trace export configuration
+- [x] Provisioned Grafana dashboard for request volume, status codes and p95 latency
+- [x] OpenTelemetry FastAPI and SQLAlchemy trace export configuration
 - [ ] Queue monitoring, dead-letter handling and load tests
 - [ ] Database instrumentation and trace-linked incident views
 
