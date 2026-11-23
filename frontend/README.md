@@ -1,15 +1,29 @@
 # OpsPilot Web Console
 
-The frontend is intentionally not a static mockup. It will be implemented after the first backend vertical slice is stable and will call the real `/api/v1` endpoints.
+A live Next.js console backed by the OpsPilot FastAPI API. It does not render static incident samples.
 
-Planned stack: Next.js App Router, TypeScript, Tailwind CSS, and a typed API client.
+## Features
 
-Initial screens:
+- Workspace registration and sign-in through backend authentication.
+- JWT kept in a server-set HttpOnly cookie, not local storage.
+- Same-origin Next.js API proxy forwards requests to FastAPI.
+- Incident list with API-backed status and priority filters.
+- Incident details, acknowledge/resolve actions and audit timeline.
+- Event explorer with a real event-ingestion form.
+- Tenant-scoped service dependency registry.
+- Workspace member list and role management.
 
-- Live incident overview backed by `GET /api/v1/incidents`.
-- Incident detail and audit timeline backed by the incident detail/activity endpoints.
-- Event explorer backed by `GET /api/v1/events`.
-- Acknowledgement and resolution actions backed by the corresponding `POST` endpoints.
-- Event simulator that submits real events to `POST /api/v1/events` for local demonstrations.
+## Local development
 
-No demo cards or fake incident metrics will be presented as live data.
+Install Node.js 22 or later, then:
+
+\`\`\`bash
+npm install
+npm run dev
+\`\`\`
+
+The UI proxy defaults to http://127.0.0.1:8000. Start the API separately and set API_URL to a different API address if needed.
+
+## Security notes
+
+The JWT cookie is HttpOnly, SameSite=Lax and Secure in production. The API validates the token and re-checks current membership role on every request. A public deployment still needs HTTPS, CSRF protection for state-changing browser routes, rate limiting and a managed secret store.

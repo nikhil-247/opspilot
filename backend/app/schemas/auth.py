@@ -35,6 +35,11 @@ class RoleUpdateRequest(BaseModel):
     role: str = Field(pattern="^(owner|admin|on_call|viewer)$")
 
 
+class MembershipCreateRequest(BaseModel):
+    user_id: str
+    role: str = Field(default="viewer", pattern="^(admin|on_call|viewer)$")
+
+
 class MemberRead(BaseModel):
     user_id: str
     email: EmailStr

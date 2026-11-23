@@ -20,12 +20,32 @@ def test_login_rejects_incorrect_password(client):
 
 
 def test_role_permissions_block_viewer_writes(client, sample_event):
-    members = client.get("/api/v1/auth/members")
-    assert members.status_code == 200
-    owner = members.json()[0]
-    client.patch(
-        f"/api/v1/auth/members/{owner['user_id']}/role",
-        json={"role": "viewer"},
+    workspace = client.get("/api/v1/auth/me").json()
+    second_registration = client.post(
+        "/api/v1/auth/register",
+        json={
+            "organization_name": "Temporary Workspace",
+            "full_name": "Second User",
+            "email": "second@example.test",
+            "password": "another-strong-password-123",
+        },
     )
+    assert second_registration.status_code == 201
+    second_user_id = second_registration.json()["user"]["id"]
+    added = client.post(
+        "/api/v1/auth/members",
+        json={"user_id": second_user_id, "role": "viewer"},
+    )
+    assert added.status_code == 201
+    login = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "second@example.test",
+            "password": "another-strong-password-123",
+            "organization_slug": workspace["organization_slug"],
+        },
+    )
+    assert login.status_code == 200
+    client.headers.update({"Authorization": f"Bearer {login.json()['access_token']}"})
     response = client.post("/api/v1/events", json=sample_event)
     assert response.status_code == 403

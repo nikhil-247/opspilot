@@ -12,12 +12,8 @@ from app.core.security import create_access_token, hash_password, verify_passwor
 from app.db.session import get_db
 from app.models import Membership, Organization, User
 from app.schemas.auth import (
-    LoginRequest,
-    MemberRead,
-    RegisterRequest,
-    RoleUpdateRequest,
-    TokenResponse,
-    UserProfile,
+    LoginRequest, MemberRead, MembershipCreateRequest, RegisterRequest,
+    RoleUpdateRequest, TokenResponse, UserProfile,
 )
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
@@ -28,22 +24,16 @@ def _profile(db: Session, user: User, membership: Membership) -> UserProfile:
     if organization is None:
         raise HTTPException(status_code=500, detail="Organization record is missing")
     return UserProfile(
-        id=user.id,
-        email=user.email,
-        full_name=user.full_name,
-        organization_id=organization.id,
-        organization_name=organization.name,
-        organization_slug=organization.slug,
-        role=membership.role,
+        id=user.id, email=user.email, full_name=user.full_name,
+        organization_id=organization.id, organization_name=organization.name,
+        organization_slug=organization.slug, role=membership.role,
     )
 
 
 def _token_response(db: Session, user: User, membership: Membership) -> TokenResponse:
     return TokenResponse(
         access_token=create_access_token(
-            user_id=user.id,
-            organization_id=membership.organization_id,
-            role=membership.role,
+            user_id=user.id, organization_id=membership.organization_id, role=membership.role
         ),
         expires_in=settings.access_token_expire_minutes * 60,
         user=_profile(db, user, membership),
@@ -55,25 +45,18 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> TokenRe
     email = str(payload.email).lower()
     if db.scalar(select(User).where(User.email == email)):
         raise HTTPException(status_code=409, detail="An account with this email already exists")
-
     slug_base = re.sub(r"[^a-z0-9]+", "-", payload.organization_name.lower()).strip("-")[:60]
     slug = f"{slug_base or 'workspace'}-{uuid4().hex[:6]}"
     now = datetime.now(timezone.utc)
     organization = Organization(name=payload.organization_name.strip(), slug=slug, created_at=now)
     user = User(
-        email=email,
-        full_name=payload.full_name.strip(),
-        password_hash=hash_password(payload.password),
-        is_active=True,
-        created_at=now,
+        email=email, full_name=payload.full_name.strip(),
+        password_hash=hash_password(payload.password), is_active=True, created_at=now,
     )
     db.add_all([organization, user])
     db.flush()
     membership = Membership(
-        user_id=user.id,
-        organization_id=organization.id,
-        role="owner",
-        created_at=now,
+        user_id=user.id, organization_id=organization.id, role="owner", created_at=now,
     )
     db.add(membership)
     db.commit()
@@ -88,7 +71,6 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
     user = db.scalar(select(User).where(User.email == email))
     if user is None or not user.is_active or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Email or password is incorrect")
-
     memberships = list(
         db.scalars(
             select(Membership).where(Membership.user_id == user.id).order_by(Membership.created_at)
@@ -112,12 +94,10 @@ def me(
     db: Session = Depends(get_db),
 ) -> UserProfile:
     user = db.get(User, context.user_id)
-    membership = db.scalar(
-        select(Membership).where(
-            Membership.user_id == context.user_id,
-            Membership.organization_id == context.organization_id,
-        )
-    )
+    membership = db.scalar(select(Membership).where(
+        Membership.user_id == context.user_id,
+        Membership.organization_id == context.organization_id,
+    ))
     if user is None or membership is None:
         raise HTTPException(status_code=401, detail="Account is no longer active")
     return _profile(db, user, membership)
@@ -125,7 +105,7 @@ def me(
 
 @router.get("/members", response_model=list[MemberRead])
 def list_members(
-    context: UserContext = Depends(get_current_context),
+    context: UserContext = Depends(require_roles("owner", "admin")),
     db: Session = Depends(get_db),
 ) -> list[MemberRead]:
     rows = db.execute(
@@ -140,6 +120,32 @@ def list_members(
     ]
 
 
+@router.post("/members", response_model=MemberRead, status_code=201)
+def add_member(
+    payload: MembershipCreateRequest,
+    context: UserContext = Depends(require_roles("owner", "admin")),
+    db: Session = Depends(get_db),
+) -> MemberRead:
+    user = db.get(User, payload.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=404, detail="User account not found")
+    existing = db.scalar(select(Membership).where(
+        Membership.user_id == user.id,
+        Membership.organization_id == context.organization_id,
+    ))
+    if existing:
+        raise HTTPException(status_code=409, detail="User is already a member of this workspace")
+    membership = Membership(
+        user_id=user.id, organization_id=context.organization_id,
+        role=payload.role, created_at=datetime.now(timezone.utc),
+    )
+    db.add(membership)
+    db.commit()
+    return MemberRead(
+        user_id=user.id, email=user.email, full_name=user.full_name, role=membership.role,
+    )
+
+
 @router.patch("/members/{user_id}/role", response_model=MemberRead)
 def update_member_role(
     user_id: str,
@@ -149,12 +155,10 @@ def update_member_role(
 ) -> MemberRead:
     if user_id == context.user_id:
         raise HTTPException(status_code=400, detail="You cannot change your own role")
-    membership = db.scalar(
-        select(Membership).where(
-            Membership.user_id == user_id,
-            Membership.organization_id == context.organization_id,
-        )
-    )
+    membership = db.scalar(select(Membership).where(
+        Membership.user_id == user_id,
+        Membership.organization_id == context.organization_id,
+    ))
     if membership is None:
         raise HTTPException(status_code=404, detail="Organization member not found")
     if membership.role == "owner" and context.role != "owner":
@@ -165,8 +169,5 @@ def update_member_role(
     db.commit()
     user = db.get(User, user_id)
     return MemberRead(
-        user_id=user.id,
-        email=user.email,
-        full_name=user.full_name,
-        role=membership.role,
+        user_id=user.id, email=user.email, full_name=user.full_name, role=membership.role,
     )

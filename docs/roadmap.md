@@ -1,48 +1,41 @@
-# Development Roadmap
+# OpsPilot Roadmap
 
-## Milestone 1: Backend event-to-incident workflow (current)
+## Milestone 1: Incident backend foundation
+- [x] FastAPI APIs and OpenAPI docs
+- [x] Event ingestion, deduplication and priority escalation
+- [x] Incident lifecycle and audit history
+- [x] Initial test suite
 
-- [x] FastAPI application and API documentation
-- [x] PostgreSQL-ready SQLAlchemy models
-- [x] Alembic initial schema migration
-- [x] Event ingestion and validation
-- [x] Fingerprint-based incident deduplication
-- [x] Priority escalation and SLA response targets
-- [x] Incident acknowledge/resolve/reopen lifecycle
-- [x] Activity/audit trail
-- [x] Automated API tests
-- [x] Docker Compose development environment
-- [x] GitHub Actions CI workflow
+## Milestone 2: Live console and enterprise access
+- [x] Next.js console backed by real API endpoints
+- [x] Incident filters, details and activity timeline
+- [x] Event explorer and event submission
+- [x] JWT authentication and HttpOnly frontend session cookie
+- [x] Organization memberships and role checks
+- [x] Tenant-scoped incident, event and service dependency queries
+- [ ] PostgreSQL migration run against a live container and cross-tenant security review
+- [ ] Invite acceptance and password reset lifecycle
 
-## Milestone 2: Real dashboard and demo workflow
+## Milestone 3: Background processing and telemetry
+- [x] Celery event processing task with retry policy
+- [x] Redis broker and Docker worker service
+- [x] Prometheus HTTP metrics endpoint and scrape config
+- [x] OpenTelemetry FastAPI trace export configuration
+- [ ] Queue monitoring, dead-letter handling and load tests
+- [ ] Database instrumentation and trace-linked incident views
 
-- [ ] Next.js + TypeScript console
-- [ ] Typed API client and loading/error/empty states
-- [ ] Live incident list and filters
-- [ ] Incident details and activity timeline
-- [ ] Event simulator connected to the backend
-- [ ] Browser end-to-end tests
+## Milestone 4: Service topology and incident intelligence
+- [x] Tenant-scoped service dependency registry
+- [x] Event-rate anomaly signal from recent event windows
+- [x] Evidence-backed incident hypotheses from event metadata
+- [ ] Automated dependency graph discovery from traces
+- [ ] Historical evaluation dataset and calibrated anomaly model
+- [ ] Runbook retrieval and evidence-grounded LLM explanation
 
-## Milestone 3: Enterprise access controls
-
-- [ ] Authentication
-- [ ] Tenant and organization data model
-- [ ] Role-based authorization
-- [ ] Tenant isolation tests
-- [ ] Rate limiting and secure configuration
-
-## Milestone 4: Observability and asynchronous processing
-
-- [ ] Background event processing
-- [ ] Durable queue and retry/dead-letter policy
-- [ ] OpenTelemetry instrumentation
-- [ ] Prometheus metrics and Grafana dashboards
-- [ ] Service dependency graph
-
-## Milestone 5: Intelligent incident assistance
-
-- [ ] Evidence retrieval from related events and deployments
-- [ ] Statistical anomaly detection
-- [ ] Root-cause hypotheses with evidence and confidence
-- [ ] Runbook recommendations
-- [ ] Evaluation dataset and quality measurements
+## Milestone 5: Production hardening
+- [ ] CSRF protections and browser security review
+- [ ] Rate limiting and service-to-service credentials
+- [ ] PostgreSQL concurrency and migration tests
+- [ ] Queue failure recovery and idempotency tests
+- [ ] Load, integration and browser end-to-end tests
+- [ ] Deployment and operations runbooks

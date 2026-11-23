@@ -1,48 +1,47 @@
-# OpsPilot Architecture (MVP)
+# OpsPilot Architecture
 
-## Current vertical slice
+## Runtime overview
 
-OpsPilot starts as a modular monolith with one API process and a relational database. This keeps local development and testing straightforward while leaving clear seams for background workers and message brokers later.
-
-```mermaid
+\`\`\`mermaid
 flowchart TD
-    SDK[Service SDK / Demo Producer] --> API[FastAPI Event API]
-    API --> RULES[Incident Correlation Service]
-    RULES --> DB[(PostgreSQL)]
-    API --> READ[Incident and Event APIs]
-    READ --> UI[Web Dashboard - next milestone]
-```
+    Browser[Next.js console] -->|HttpOnly session proxy| API[FastAPI API]
+    Service[Application / SDK] -->|JWT or service identity| API
+    API --> PG[(PostgreSQL)]
+    API -->|Async event task| Redis[(Redis)]
+    Redis --> Worker[Celery worker]
+    Worker --> PG
+    API --> Prom[Prometheus metrics]
+    API -->|OTLP traces| Collector[OpenTelemetry Collector]
+    Prom --> Grafana[Grafana]
+\`\`\`
 
-## Event ingestion
+## Tenant and access model
 
-1. Validate the event envelope with Pydantic.
-2. Persist every accepted event, including informational events.
-3. For warning, error, and critical events, compute a stable fingerprint from service, event type, and normalized message.
-4. Create an incident if no matching fingerprint exists. A uniqueness constraint protects the fingerprint against duplicate incidents.
-5. Attach subsequent matching events to the same incident and increment its occurrence count.
-6. Escalate priority when a more severe matching event arrives.
+Each user can belong to one or more organizations through a membership. Access tokens identify a user and selected organization. The API re-reads membership and role from PostgreSQL on each authenticated request, rather than trusting a role embedded in the token. Every event, incident, and service dependency query is scoped to the active organization.
 
-## Initial priority and response targets
+Roles:
+- owner: workspace owner and highest access.
+- admin: workspace member/role administration and incident operations.
+- on_call: event ingestion and incident lifecycle operations.
+- viewer: read-only access.
 
-| Severity | Priority | Initial response target |
-|---|---|---|
-| Critical | P1 | 15 minutes |
-| Error | P2 | 30 minutes |
-| Warning | P3 | 4 hours |
-| Info | No incident | Not applicable |
+## Event processing
 
-These are demonstration defaults and should be configurable per organization in a later release.
+POST /api/v1/events persists events immediately. POST /api/v1/events/async publishes a Celery task to Redis; the worker validates the payload, stores the event, and correlates the incident. Database errors are retried with exponential backoff and jitter. The task uses late acknowledgement so a worker crash does not acknowledge unfinished work.
 
-## Incident lifecycle
+The event fingerprint includes organization ID, service, event type and normalized message, preventing collisions across organizations while retaining a single unique index.
 
-`open -> acknowledged -> resolved`
+## Incident intelligence
 
-A new matching alert reopens a resolved incident. Invalid acknowledgement or repeated resolution attempts return HTTP 409. Every lifecycle action is written to `incident_activities` for an audit trail.
+GET /api/v1/incidents/{id}/analysis uses recent event metadata for the same organization and service. It computes a simple recent event-rate baseline and returns evidence-backed deployment, region and event-pattern hypotheses. Every hypothesis includes a caveat. The result is explicitly not a confirmed root cause.
 
-## Planned evolution
+## Observability
 
-- Add tenant-aware authentication and RBAC before exposing the system to external users.
-- Add a durable queue and background workers when ingestion volume requires decoupling.
-- Add OpenTelemetry collectors and Prometheus metrics for OpsPilot's own service health.
-- Add service dependency graph and evidence-backed root-cause suggestions.
-- Add dashboard and browser-based end-to-end tests.
+- Prometheus FastAPI Instrumentator exposes request counts and latency at /metrics.
+- OpenTelemetry FastAPI tracing is activated when OTEL_EXPORTER_OTLP_ENDPOINT is configured.
+- The bundled collector receives OTLP traces and exports them to its debug exporter in the development stack.
+- Prometheus scrapes the API and Grafana is provisioned with Prometheus as its default data source.
+
+## Security and known gaps
+
+The Next.js proxy keeps access tokens in an HttpOnly, SameSite=Lax cookie. Production deployment still requires HTTPS, CSRF protections on state-changing browser routes, rate limits, strong secret management and security review. The member-add endpoint links an already registered user; invitation email and password reset are not implemented.
