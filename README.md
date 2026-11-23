@@ -13,8 +13,8 @@
 - Celery + Redis asynchronous event ingestion.
 - Evidence-based incident hypotheses and event-rate anomaly signals.
 - Prometheus HTTP metrics and optional OpenTelemetry trace export.
-- Next.js console with live incident queue, event explorer, incident details and team access.
-- Docker Compose stack for PostgreSQL, Redis, API, worker, frontend, OpenTelemetry Collector, Prometheus and Grafana.
+- Next.js console with a 15-second auto-refreshing incident queue, filtered event explorer, incident details, team access and service dependency registry.
+- Docker Compose stack for PostgreSQL, Redis, API, worker, frontend, OpenTelemetry Collector, Prometheus and Grafana with a provisioned API overview dashboard.
 
 ## Run the complete stack
 
@@ -28,7 +28,7 @@
 
 4. Open the console at http://localhost:3000 and create a workspace.
 5. Open API docs at http://localhost:8000/docs.
-6. Open Prometheus at http://localhost:9090, Grafana at http://localhost:3001, and metrics at http://localhost:8000/metrics.
+6. Open Prometheus at http://localhost:9090, Grafana at http://localhost:3001, and metrics at http://localhost:8000/metrics. Grafana's OpsPilot API Overview dashboard is provisioned automatically.
 
 Local-only Grafana defaults are user admin, password opspilot_dev. Change these before any shared deployment.
 
