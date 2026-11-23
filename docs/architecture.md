@@ -37,10 +37,10 @@ GET /api/v1/incidents/{id}/analysis uses recent event metadata for the same orga
 
 ## Observability
 
-- Prometheus FastAPI Instrumentator exposes request counts and latency at /metrics.
-- OpenTelemetry FastAPI tracing is activated when OTEL_EXPORTER_OTLP_ENDPOINT is configured.
+- A lightweight Prometheus middleware records request totals by method/status and request latency histogram at /metrics. It avoids depending on internal router details and keeps metric labels low-cardinality.
+- OpenTelemetry FastAPI and SQLAlchemy tracing is activated when OTEL_EXPORTER_OTLP_ENDPOINT is configured. Set it to the complete OTLP HTTP traces URL, for example http://otel-collector:4318/v1/traces.
 - The bundled collector receives OTLP traces and exports them to its debug exporter in the development stack.
-- Prometheus scrapes the API and Grafana is provisioned with Prometheus as its default data source.
+- Prometheus scrapes the API and Grafana is provisioned with Prometheus as its default data source plus an OpsPilot API Overview dashboard for request rate, p95 latency, status-code rate and request volume by method.
 
 ## Security and known gaps
 
