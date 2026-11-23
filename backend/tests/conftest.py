@@ -34,7 +34,7 @@ def client():
             json={
                 "organization_name": "OpsPilot Test Workspace",
                 "full_name": "Test Owner",
-                "email": "owner@example.test",
+                "email": "owner@example.com",
                 "password": "a-strong-test-password-123",
             },
         )
