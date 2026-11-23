@@ -47,5 +47,9 @@ def test_role_permissions_block_viewer_writes(client, sample_event):
     )
     assert login.status_code == 200
     client.headers.update({"Authorization": f"Bearer {login.json()['access_token']}"})
+    member_list = client.get("/api/v1/auth/members")
+    assert member_list.status_code == 200
+    assert len(member_list.json()) == 2
+
     response = client.post("/api/v1/events", json=sample_event)
     assert response.status_code == 403
