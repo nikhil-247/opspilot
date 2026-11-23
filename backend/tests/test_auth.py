@@ -14,7 +14,7 @@ def test_protected_endpoints_reject_missing_token(client):
 def test_login_rejects_incorrect_password(client):
     response = client.post(
         "/api/v1/auth/login",
-        json={"email": "owner@example.test", "password": "incorrect-password"},
+        json={"email": "owner@example.com", "password": "incorrect-password"},
     )
     assert response.status_code == 401
 
@@ -26,7 +26,7 @@ def test_role_permissions_block_viewer_writes(client, sample_event):
         json={
             "organization_name": "Temporary Workspace",
             "full_name": "Second User",
-            "email": "second@example.test",
+            "email": "second@example.com",
             "password": "another-strong-password-123",
         },
     )
@@ -40,7 +40,7 @@ def test_role_permissions_block_viewer_writes(client, sample_event):
     login = client.post(
         "/api/v1/auth/login",
         json={
-            "email": "second@example.test",
+            "email": "second@example.com",
             "password": "another-strong-password-123",
             "organization_slug": workspace["organization_slug"],
         },
