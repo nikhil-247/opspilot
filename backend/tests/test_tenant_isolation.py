@@ -7,7 +7,7 @@ def test_incidents_and_events_are_isolated_between_organizations(client, sample_
         json={
             "organization_name": "Another Workspace",
             "full_name": "Another Owner",
-            "email": "another@example.test",
+            "email": "another@example.com",
             "password": "another-strong-password-456",
         },
     )
