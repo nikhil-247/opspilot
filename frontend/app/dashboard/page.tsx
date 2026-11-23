@@ -18,22 +18,36 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    const params = new URLSearchParams({ limit: "100" });
-    if (status === "active") params.set("status", "open");
-    if (status === "acknowledged") params.set("status", "acknowledged");
-    if (status === "resolved") params.set("status", "resolved");
-    if (priority !== "all") params.set("priority", priority);
-    apiFetch<IncidentList>("/api/v1/incidents?" + params.toString())
-      .then((data) => {
+
+    async function refreshIncidents(showLoading: boolean) {
+      if (showLoading) setLoading(true);
+      const params = new URLSearchParams({ limit: "100" });
+      if (status === "active") params.set("status", "open");
+      if (status === "acknowledged") params.set("status", "acknowledged");
+      if (status === "resolved") params.set("status", "resolved");
+      if (priority !== "all") params.set("priority", priority);
+      try {
+        const data = await apiFetch<IncidentList>("/api/v1/incidents?" + params.toString());
         if (!active) return;
         setIncidents(data.items);
         setTotal(data.total);
         setError("");
-      })
-      .catch((err) => active && setError(err instanceof Error ? err.message : "Unable to load incidents"))
-      .finally(() => active && setLoading(false));
-    return () => { active = false; };
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : "Unable to load incidents");
+      } finally {
+        if (active && showLoading) setLoading(false);
+      }
+    }
+
+    void refreshIncidents(true);
+    const refreshTimer = window.setInterval(() => {
+      void refreshIncidents(false);
+    }, 15000);
+
+    return () => {
+      active = false;
+      window.clearInterval(refreshTimer);
+    };
   }, [status, priority]);
 
   const stats = useMemo(() => ({
