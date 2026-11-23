@@ -83,3 +83,26 @@ def test_critical_event_reopens_resolved_incident_and_escalates(client, sample_e
         "escalated",
         "reopened",
     ]
+
+
+def test_event_explorer_filters_by_service_severity_and_search(client, sample_event):
+    client.post("/api/v1/events", json=sample_event)
+    second_event = {
+        **sample_event,
+        "service": "catalog-service",
+        "event_type": "cache_miss",
+        "severity": "warning",
+        "message": "Product cache miss",
+    }
+    client.post("/api/v1/events", json=second_event)
+
+    filtered = client.get(
+        "/api/v1/events?service=payment-service&severity=error&search=connection"
+    )
+    assert filtered.status_code == 200
+    assert len(filtered.json()) == 1
+    assert filtered.json()[0]["service"] == "payment-service"
+
+    warning_events = client.get("/api/v1/events?severity=warning")
+    assert len(warning_events.json()) == 1
+    assert warning_events.json()[0]["event_type"] == "cache_miss"
