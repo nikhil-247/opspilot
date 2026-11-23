@@ -59,24 +59,38 @@ def upgrade() -> None:
         "created_at": now,
     }])
 
+    is_sqlite = op.get_bind().dialect.name == "sqlite"
     for table_name in ("incidents", "events"):
-        op.add_column(
-            table_name,
-            sa.Column(
-                "organization_id",
-                sa.String(length=36),
-                sa.ForeignKey("organizations.id", ondelete="CASCADE"),
-                nullable=True,
-            ),
-        )
+        if is_sqlite:
+            # SQLite cannot add a foreign-key constraint with ALTER TABLE ADD COLUMN.
+            # The production PostgreSQL migration below creates the FK and NOT NULL constraint.
+            op.add_column(
+                table_name,
+                sa.Column("organization_id", sa.String(length=36), nullable=True),
+            )
+        else:
+            op.add_column(
+                table_name,
+                sa.Column(
+                    "organization_id",
+                    sa.String(length=36),
+                    sa.ForeignKey("organizations.id", ondelete="CASCADE"),
+                    nullable=True,
+                ),
+            )
         op.execute(
             sa.text(
                 f"UPDATE {table_name} SET organization_id = :org_id "
                 "WHERE organization_id IS NULL"
             ).bindparams(org_id=DEVELOPMENT_ORGANIZATION_ID)
         )
-        with op.batch_alter_table(table_name) as batch_op:
-            batch_op.alter_column("organization_id", existing_type=sa.String(length=36), nullable=False)
+        if not is_sqlite:
+            op.alter_column(
+                table_name,
+                "organization_id",
+                existing_type=sa.String(length=36),
+                nullable=False,
+            )
 
     op.create_index(
         "ix_events_organization_received_at", "events", ["organization_id", "received_at"]
