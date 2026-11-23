@@ -99,7 +99,7 @@ def ingest_event(db: Session, payload: EventCreate) -> tuple[Event, Incident | N
                         created_at=now,
                     )
                 )
-            elif incident.status == "resolved":
+            if incident.status == "resolved":
                 incident.status = "open"
                 incident.resolved_at = None
                 db.add(
