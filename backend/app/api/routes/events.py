@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import UserContext, get_current_context, require_roles
@@ -45,7 +45,9 @@ def queue_event(
 
 @router.get("", response_model=list[EventRead], summary="List recent events")
 def list_events(
-    service: str | None = None,
+    service: str | None = Query(default=None, max_length=100),
+    severity: str | None = Query(default=None, max_length=20),
+    search: str | None = Query(default=None, max_length=120),
     limit: int = Query(default=50, ge=1, le=200),
     context: UserContext = Depends(get_current_context),
     db: Session = Depends(get_db),
@@ -58,4 +60,16 @@ def list_events(
     )
     if service:
         query = query.where(Event.service == service)
+    if severity:
+        query = query.where(Event.severity == severity.lower())
+    if search:
+        pattern = f"%{search.strip()}%"
+        query = query.where(
+            or_(
+                Event.service.ilike(pattern),
+                Event.event_type.ilike(pattern),
+                Event.message.ilike(pattern),
+                Event.source.ilike(pattern),
+            )
+        )
     return list(db.scalars(query).all())
