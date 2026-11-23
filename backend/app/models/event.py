@@ -16,9 +16,13 @@ class Event(Base):
     __table_args__ = (
         Index("ix_events_service_received_at", "service", "received_at"),
         Index("ix_events_incident_id", "incident_id"),
+        Index("ix_events_organization_received_at", "organization_id", "received_at"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    organization_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     source: Mapped[str] = mapped_column(String(100), nullable=False)
     service: Mapped[str] = mapped_column(String(100), nullable=False)
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)

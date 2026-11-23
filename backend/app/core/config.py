@@ -9,11 +9,16 @@ class Settings(BaseSettings):
     """Runtime configuration loaded from environment variables or .env."""
 
     app_name: str = "OpsPilot API"
-    app_version: str = "0.1.0"
+    app_version: str = "0.2.0"
     environment: str = "development"
     database_url: str = "sqlite:///./opspilot.db"
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
     log_level: str = "INFO"
+    secret_key: str = "replace-this-development-secret-before-deploying"
+    access_token_expire_minutes: int = 60
+    redis_url: str = "redis://localhost:6379/0"
+    otel_exporter_otlp_endpoint: str | None = None
+    otel_service_name: str = "opspilot-api"
 
     model_config = SettingsConfigDict(
         env_file=".env",

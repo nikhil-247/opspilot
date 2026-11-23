@@ -23,19 +23,27 @@ PRIORITY_RANK = {"P3": 1, "P2": 2, "P1": 3}
 
 
 def _as_utc(value: datetime) -> datetime:
-    """Normalize database-returned and request timestamps for safe comparisons."""
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
 
 
-def _fingerprint(payload: EventCreate) -> str:
+def _fingerprint(payload: EventCreate, organization_id: str) -> str:
     normalized_message = re.sub(r"\s+", " ", payload.message.strip().lower())
-    raw = "|".join((payload.service.strip().lower(), payload.event_type.strip().lower(), normalized_message))
+    raw = "|".join((
+        organization_id,
+        payload.service.strip().lower(),
+        payload.event_type.strip().lower(),
+        normalized_message,
+    ))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def ingest_event(db: Session, payload: EventCreate) -> tuple[Event, Incident | None, bool]:
+def ingest_event(
+    db: Session,
+    payload: EventCreate,
+    organization_id: str,
+) -> tuple[Event, Incident | None, bool]:
     now = datetime.now(timezone.utc)
     occurred_at = payload.occurred_at or now
     priority = PRIORITY_BY_SEVERITY.get(payload.severity)
@@ -43,11 +51,17 @@ def ingest_event(db: Session, payload: EventCreate) -> tuple[Event, Incident | N
     incident_created = False
 
     if priority is not None:
-        fingerprint = _fingerprint(payload)
-        incident = db.scalar(select(Incident).where(Incident.fingerprint == fingerprint))
+        fingerprint = _fingerprint(payload, organization_id)
+        incident = db.scalar(
+            select(Incident).where(
+                Incident.organization_id == organization_id,
+                Incident.fingerprint == fingerprint,
+            )
+        )
 
         if incident is None:
             candidate = Incident(
+                organization_id=organization_id,
                 fingerprint=fingerprint,
                 title=f"{payload.service}: {payload.message[:160]}",
                 description=payload.message,
@@ -62,8 +76,6 @@ def ingest_event(db: Session, payload: EventCreate) -> tuple[Event, Incident | N
                 created_at=now,
                 updated_at=now,
             )
-            # A savepoint lets a concurrent duplicate event lose the unique-key race
-            # without aborting the outer event-ingestion transaction.
             try:
                 with db.begin_nested():
                     db.add(candidate)
@@ -80,7 +92,12 @@ def ingest_event(db: Session, payload: EventCreate) -> tuple[Event, Incident | N
                     )
                 )
             except IntegrityError:
-                incident = db.scalar(select(Incident).where(Incident.fingerprint == fingerprint))
+                incident = db.scalar(
+                    select(Incident).where(
+                        Incident.organization_id == organization_id,
+                        Incident.fingerprint == fingerprint,
+                    )
+                )
 
         if incident is not None and not incident_created:
             incident.occurrence_count += 1
@@ -89,7 +106,10 @@ def ingest_event(db: Session, payload: EventCreate) -> tuple[Event, Incident | N
             if PRIORITY_RANK[priority] > PRIORITY_RANK[incident.priority]:
                 incident.priority = priority
                 incident.severity = payload.severity.value
-                incident.sla_due_at = min(_as_utc(incident.sla_due_at), now + SLA_BY_PRIORITY[priority])
+                incident.sla_due_at = min(
+                    _as_utc(incident.sla_due_at),
+                    now + SLA_BY_PRIORITY[priority],
+                )
                 db.add(
                     IncidentActivity(
                         incident_id=incident.id,
@@ -113,6 +133,7 @@ def ingest_event(db: Session, payload: EventCreate) -> tuple[Event, Incident | N
                 )
 
     event = Event(
+        organization_id=organization_id,
         source=payload.source,
         service=payload.service,
         event_type=payload.event_type,

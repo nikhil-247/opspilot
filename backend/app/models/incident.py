@@ -20,9 +20,13 @@ class Incident(Base):
     __table_args__ = (
         Index("ix_incidents_status_priority", "status", "priority"),
         Index("ix_incidents_service_last_seen", "service", "last_seen"),
+        Index("ix_incidents_organization_status", "organization_id", "status"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    organization_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     fingerprint: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
@@ -47,7 +51,9 @@ class Incident(Base):
 
 class IncidentActivity(Base):
     __tablename__ = "incident_activities"
-    __table_args__ = (Index("ix_incident_activities_incident_created", "incident_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_incident_activities_incident_created", "incident_id", "created_at"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     incident_id: Mapped[str] = mapped_column(

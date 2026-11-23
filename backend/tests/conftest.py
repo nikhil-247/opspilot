@@ -29,6 +29,18 @@ def client():
 
     fastapi_app.dependency_overrides[get_db] = override_get_db
     with TestClient(fastapi_app) as test_client:
+        registration = test_client.post(
+            "/api/v1/auth/register",
+            json={
+                "organization_name": "OpsPilot Test Workspace",
+                "full_name": "Test Owner",
+                "email": "owner@example.test",
+                "password": "a-strong-test-password-123",
+            },
+        )
+        assert registration.status_code == 201, registration.text
+        token = registration.json()["access_token"]
+        test_client.headers.update({"Authorization": f"Bearer {token}"})
         yield test_client
     fastapi_app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=test_engine)

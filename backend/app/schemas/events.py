@@ -43,3 +43,8 @@ class EventIngestResponse(BaseModel):
     event: EventRead
     incident: IncidentRead | None = None
     incident_created: bool = False
+
+
+class EventQueuedResponse(BaseModel):
+    task_id: str
+    status: str = "queued"
