@@ -57,3 +57,29 @@ def test_fingerprint_normalizes_case_and_whitespace(client, sample_event):
     second = client.post("/api/v1/events", json=sample_event).json()
     assert first["incident"]["id"] == second["incident"]["id"]
     assert second["incident"]["occurrence_count"] == 2
+
+
+def test_critical_event_reopens_resolved_incident_and_escalates(client, sample_event):
+    created = client.post("/api/v1/events", json=sample_event).json()["incident"]
+    incident_id = created["id"]
+
+    resolved = client.post(f"/api/v1/incidents/{incident_id}/resolve", json={})
+    assert resolved.status_code == 200
+    assert resolved.json()["status"] == "resolved"
+
+    sample_event["severity"] = "critical"
+    reopened = client.post("/api/v1/events", json=sample_event)
+    assert reopened.status_code == 201
+    incident = reopened.json()["incident"]
+    assert incident["id"] == incident_id
+    assert incident["priority"] == "P1"
+    assert incident["status"] == "open"
+    assert incident["resolved_at"] is None
+
+    actions = client.get(f"/api/v1/incidents/{incident_id}/activity").json()
+    assert [item["action"] for item in actions] == [
+        "created",
+        "resolved",
+        "escalated",
+        "reopened",
+    ]
