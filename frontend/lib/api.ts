@@ -16,7 +16,7 @@ export async function apiFetch<T>(
     const message =
       payload && typeof payload.detail === "string"
         ? payload.detail
-        : \`Request failed (\${response.status})\`;
+        : `Request failed (${response.status})`;
     throw new Error(message);
   }
 
