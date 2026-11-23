@@ -105,7 +105,7 @@ def me(
 
 @router.get("/members", response_model=list[MemberRead])
 def list_members(
-    context: UserContext = Depends(require_roles("owner", "admin")),
+    context: UserContext = Depends(get_current_context),
     db: Session = Depends(get_db),
 ) -> list[MemberRead]:
     rows = db.execute(
